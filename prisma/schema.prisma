@@ -1,0 +1,529 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum WorkflowStage {
+  DRAFT
+  REGIONAL
+  PROCUREMENT
+  FINANCE
+  APM
+  COMPLETED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REVISION
+  REJECTED
+  COMPLETED
+}
+
+enum NotificationType {
+  INFO
+  SUCCESS
+  WARNING
+  ERROR
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  LOGIN
+  EXPORT
+  IMPORT
+}
+
+enum TrackingAction {
+  CREATE
+  UPDATE
+  SUBMIT
+  VERIFY
+  APPROVE
+  REJECT
+  REVISION
+  RETURN
+  FORWARD
+  RECEIVE
+  COMPLETE
+  CLOSE
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  users  User[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("roles")
+}
+
+model Region {
+  id          String       @id @default(uuid())
+  code        String?      @unique
+  name        String       @unique
+  isActive    Boolean      @default(true)
+  berkasInfos BerkasInfo[]
+  branches    Branch[]
+  users       User[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("region")
+}
+
+model Branch {
+  id          String       @id @default(uuid())
+  regionId  String
+  code        String?
+  name        String       @unique
+  region  Region  @relation(fields: [regionId], references: [id], map: "fk_branch_region")
+  users       User[]
+  isActive    Boolean      @default(true)
+  berkasInfos BerkasInfo[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@index([regionId])
+  @@map("branch")
+}
+
+model User {
+  id         String     @id @default(uuid())
+  nik        String     @unique
+  name       String
+  email      String?    @unique
+  password   String
+  phone      String?
+  roleId     String
+  branchId   String?
+  regionId  String?
+  status     UserStatus @default(ACTIVE)
+  isActive   Boolean    @default(true)
+
+  role               Role              @relation(fields: [roleId], references: [id], map: "fk_user_role")
+  branch             Branch?           @relation(fields: [branchId], references: [id], map: "fk_user_branch")
+  region  Region?  @relation(fields: [regionId], references: [id], map: "fk_user_region")
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  createdBerkas      Berkas[]          @relation("CreatedBy")
+  updatedBerkas      Berkas[]          @relation("UpdatedBy")
+  trackingHistories  TrackingHistory[] @relation("TrackingCreatedBy")
+  requestedRevisions RevisionHistory[] @relation("RevisionRequester")
+  resolvedRevisions  RevisionHistory[] @relation("RevisionResolver")
+  attachments        Attachment[]
+  comments           Comment[]
+
+  @@index([roleId])
+  @@index([branchId])
+  @@index([regionId])
+  @@map("users")
+}
+
+model Program {
+  id          String       @id @default(uuid())
+  code        String?      @unique
+  name        String       @unique
+  isActive    Boolean      @default(true)
+  berkasInfos BerkasInfo[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("program")
+}
+
+model JenisPekerjaan {
+  id          String       @id @default(uuid())
+  code        String?
+  name        String       @unique
+  isActive    Boolean      @default(true)
+  berkasInfos BerkasInfo[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("jenis_pekerjaan")
+}
+
+model Mitra {
+  id          String       @id @default(uuid())
+  code        String?
+  name        String       @unique
+  address     String?
+  phone       String?
+  email       String?
+  pic         String?
+  isActive    Boolean      @default(true)
+  berkasInfos BerkasInfo[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("mitra")
+}
+
+model JenisTagihan {
+  id          String       @id @default(uuid())
+  code        String?
+  name        String       @unique
+  isActive    Boolean      @default(true)
+  berkasInfos BerkasInfo[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("jenis_tagihan")
+}
+
+model PlanGr {
+  id        String   @id @default(uuid())
+  month     Int
+  year      Int?
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([month, year])
+  @@map("plan_gr")
+}
+
+model Posisi {
+  id           String            @id @default(uuid())
+  stage        WorkflowStage
+  code         Int
+  name         String
+  hexColor     String?
+  description  String?
+  slaDays      Int?
+  icon         String?
+  orderNo      Int
+  isFinal      Boolean           @default(false)
+  isActive     Boolean           @default(true)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  trackingFrom TrackingHistory[] @relation("TrackingFromPosisi")
+  trackingTo   TrackingHistory[] @relation("TrackingToPosisi")
+  berkas       Berkas[]
+
+  @@unique([stage, code])
+  @@map("posisi")
+}
+
+model Berkas {
+  id              String             @id @default(uuid())
+  nomor           String             @unique
+  barcode         String?
+  qrCode          String?
+  currentStage    WorkflowStage
+  approvalStatus  ApprovalStatus
+  currentPosisiId String
+  info            BerkasInfo?
+  regional        BerkasRegional?
+  procurement     BerkasProcurement?
+  tracking        TrackingHistory[]
+  revisions       RevisionHistory[]
+  attachments     Attachment[]
+  comments        Comment[]
+  createdById     String?
+  updatedById     String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
+  createdBy       User?              @relation("CreatedBy", fields: [createdById], references: [id], map: "fk_berkas_created_by")
+  updatedBy       User?              @relation("UpdatedBy", fields: [updatedById], references: [id], map: "fk_berkas_updated_by")
+  currentPosisi   Posisi             @relation(fields: [currentPosisiId], references: [id], map: "fk_berkas_current_posisi")
+
+  @@index([currentStage])
+  @@index([approvalStatus])
+  @@index([currentPosisiId])
+  @@index([createdAt])
+  @@map("berkas")
+}
+
+model BerkasInfo {
+  id               String   @id @default(uuid())
+  berkasId         String   @unique
+  namaPekerjaan    String
+  dasarPermintaan  String?
+  nilaiPekerjaan   Decimal? @db.Decimal(18, 2)
+  pid              String?
+  wbs              String?
+  programId        String
+  branchId         String
+  regionId  String
+  mitraId          String
+  jenisPekerjaanId String
+  jenisTagihanId   String?
+  periodeBulan     Int?
+  periodeTahun     Int?
+
+  program        Program        @relation(fields: [programId], references: [id], map: "fk_berkas_info_program")
+  branch         Branch         @relation(fields: [branchId], references: [id], map: "fk_berkas_info_branch")
+  region  Region  @relation(fields: [regionId], references: [id], map: "fk_berkas_info_region")
+  mitra          Mitra          @relation(fields: [mitraId], references: [id], map: "fk_berkas_info_mitra")
+  jenisPekerjaan JenisPekerjaan @relation(fields: [jenisPekerjaanId], references: [id], map: "fk_berkas_info_jenis_pekerjaan")
+  jenisTagihan   JenisTagihan?  @relation(fields: [jenisTagihanId], references: [id], map: "fk_berkas_info_jenis_tagihan")
+
+  berkas Berkas @relation(fields: [berkasId], references: [id], onDelete: Cascade, map: "fk_berkas_info_berkas")
+
+  @@map("berkas_info")
+}
+
+model BerkasProcurement {
+  id                String    @id @default(uuid())
+  berkasId          String    @unique
+  tanggalPelimpahan DateTime?
+  tanggalAppPo      DateTime?
+  statusPo          String?
+  noPr              String?
+  noPo              String?
+  tanggalPo         DateTime?
+  tahunPo           Int?
+  planGrId          String?
+  noGr              String?
+  nilaiGr           Decimal?  @db.Decimal(18, 2)
+
+  berkas Berkas @relation(fields: [berkasId], references: [id], onDelete: Cascade, map: "fk_berkas_procurement_berkas")
+
+  @@map("berkas_procurement")
+}
+
+model BerkasRegional {
+  id            String    @id @default(uuid())
+  berkasId      String    @unique
+  tanggalTerima DateTime?
+  verifikatorId String?
+  revisi        Int       @default(0)
+  posisiId      String?
+
+  berkas Berkas @relation(fields: [berkasId], references: [id], onDelete: Cascade, map: "fk_berkas_regional_berkas")
+
+  @@map("berkas_regional")
+}
+
+model BerkasArea {
+  id            String    @id @default(uuid())
+  berkasId      String    @unique
+  tanggalKirim  DateTime?
+  tanggalTerima DateTime?
+  verifikatorId String?
+  revisi        Int       @default(0)
+  posisiId      String?
+
+  @@map("berkas_area")
+}
+
+model BerkasFinance {
+  id            String    @id @default(uuid())
+  berkasId      String    @unique
+  tanggalKirim  DateTime?
+  tanggalTerima DateTime?
+  verifikatorId String?
+  revisi        Int       @default(0)
+  posisiId      String?
+  top           Int?
+
+  @@map("berkas_finance")
+}
+
+model BerkasSummary {
+  id            String  @id @default(uuid())
+  berkasId      String  @unique
+  statusApjatel String?
+  kesimpulan    String?
+  statusBaru    String?
+  cekFin        Boolean
+  cekRpa        Boolean
+  ricek         Boolean
+  ketProcSs     String?
+
+  @@map("berkas_summary")
+}
+
+model TrackingHistory {
+  id           String         @id @default(uuid())
+  berkasId     String
+  fromStage    WorkflowStage?
+  toStage      WorkflowStage
+  fromPosisiId String?
+  toPosisiId   String
+  action       TrackingAction
+  note         String?        @db.Text
+  duration     Int?
+  createdById  String
+  createdAt    DateTime       @default(now())
+  berkas       Berkas         @relation(fields: [berkasId], references: [id], onDelete: Cascade, map: "fk_tracking_history_berkas")
+  fromPosisi   Posisi?        @relation("TrackingFromPosisi", fields: [fromPosisiId], references: [id], map: "fk_tracking_history_from_posisi")
+  toPosisi     Posisi         @relation("TrackingToPosisi", fields: [toPosisiId], references: [id], map: "fk_tracking_history_to_posisi")
+  createdBy    User           @relation("TrackingCreatedBy", fields: [createdById], references: [id], map: "fk_tracking_history_created_by")
+
+  @@index([berkasId])
+  @@index([createdAt])
+  @@index([toStage])
+  @@map("tracking_history")
+}
+
+model RevisionHistory {
+  id            String         @id @default(uuid())
+  berkasId      String
+  stage         WorkflowStage
+  revisionNo    Int
+  description   String         @db.Text
+  requestedById String
+  resolvedById  String?
+  resolvedAt    DateTime?
+  status        ApprovalStatus
+  createdAt     DateTime       @default(now())
+  berkas        Berkas         @relation(fields: [berkasId], references: [id], onDelete: Cascade, map: "fk_revision_history_berkas")
+  requestedBy   User           @relation("RevisionRequester", fields: [requestedById], references: [id], map: "fk_revision_history_requested_by")
+  resolvedBy    User?          @relation("RevisionResolver", fields: [resolvedById], references: [id], map: "fk_revision_history_resolved_by")
+
+  @@index([berkasId])
+  @@index([stage])
+  @@map("revision_history")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  berkasId  String
+  userId    String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+  berkas    Berkas   @relation(fields: [berkasId], references: [id], onDelete: Cascade, map: "fk_comment_berkas")
+  user      User     @relation(fields: [userId], references: [id], map: "fk_comment_user")
+
+  @@index([berkasId])
+  @@map("comments")
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  berkasId     String
+  uploadedById String
+  fileName     String
+  originalName String
+  extension    String
+  mimeType     String
+  fileSize     Int
+  path         String
+  category     String?
+  description  String?
+  storage      String
+  checksum     String?
+  isDeleted    Boolean
+  createdAt    DateTime @default(now())
+  berkas       Berkas   @relation(fields: [berkasId], references: [id], onDelete: Cascade, map: "fk_attachment_berkas")
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], map: "fk_attachment_uploaded_by")
+
+  @@index([berkasId])
+  @@index([category])
+  @@map("attachments")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  title     String
+  message   String           @db.Text
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  userId    String
+  berkasId  String?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  activity    String
+  ipAddress   String?
+  userAgent   String?
+  module      String
+  referenceId String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@map("activity_logs")
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  userId      String?
+  tableName   String
+  recordId    String
+  action      AuditAction
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  module      String
+  referenceId String
+  createdAt   DateTime    @default(now())
+
+  @@index([recordId])
+  @@index([tableName])
+  @@map("audit_logs")
+}
+
+model Sequence {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  prefix        String
+  year          Int
+  currentNumber Int      @default(0)
+  digit         Int      @default(6)
+  updatedAt     DateTime @updatedAt
+
+  @@map("sequences")
+}
+
+model Setting {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       String   @db.Text
+  description String?
+  updatedAt   DateTime @updatedAt
+
+  @@map("settings")
+}
+
+model WorkflowTransition {
+  id           String         @id @default(uuid())
+  fromPosisiId String
+  toPosisiId   String
+  action       TrackingAction
+  isActive     Boolean        @default(true)
+
+  @@unique([fromPosisiId, toPosisiId])
+  @@map("workflow_transition")
+}
+
+model WorkflowStageConfig {
+  id              String        @id @default(uuid())
+  stage           WorkflowStage @unique
+  slaDays         Int
+  allowRevision   Boolean       @default(true)
+  allowAttachment Boolean       @default(true)
+  allowComment    Boolean       @default(true)
+  allowApproval   Boolean       @default(true)
+  allowReject     Boolean       @default(true)
+  updatedAt       DateTime      @updatedAt
+
+  @@map("workflow_stage_config")
+}
