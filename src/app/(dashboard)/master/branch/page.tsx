@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import MasterCRUDPage, { FieldConfig } from "@/components/shared/MasterCRUDPage";
 
 const fields: FieldConfig[] = [
-  { key: "id", label: "ID", type: "text" },
+  { key: "id", label: "ID", type: "text", hidden: true, disabled: true },
   { key: "name", label: "Nama Branch", type: "text", required: true, width: "200px" },
   { key: "code", label: "Kode", type: "text", width: "120px" },
   { key: "regionId", label: "Region", type: "select", required: true, width: "200px", options: [] },

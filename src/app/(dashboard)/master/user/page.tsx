@@ -2,8 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, X, Search } from "lucide-react";
+import { useToast } from "@/components/shared/Toast";
+import { useConfirm } from "@/components/shared/ConfirmModal";
 
 export default function UserManagementPage() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [users, setUsers] = useState<any[]>([]);
   const [roles, setRoles] = useState<any[]>([]);
   const [regions, setRegions] = useState<any[]>([]);
@@ -89,32 +93,46 @@ export default function UserManagementPage() {
 
     if (form.password) payload.password = form.password;
 
-    if (editUser) {
-      await fetch(`/api/master/user/${editUser.id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(payload),
-      });
-    } else {
-      await fetch("/api/master/user", {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ ...payload, password: form.password || form.nik }),
-      });
-    }
+    try {
+      const res = editUser
+        ? await fetch(`/api/master/user/${editUser.id}`, { method: "PUT", headers, body: JSON.stringify(payload) })
+        : await fetch("/api/master/user", { method: "POST", headers, body: JSON.stringify({ ...payload, password: form.password || form.nik }) });
 
-    setModalOpen(false);
-    fetchAll();
+      const data = await res.json();
+      if (data.success) {
+        toast.success(editUser ? "User berhasil diperbarui" : "User berhasil dibuat");
+        setModalOpen(false);
+        fetchAll();
+      } else {
+        toast.error(data.error || "Gagal menyimpan user");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan");
+    }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm("Hapus user ini?")) return;
-    const token = localStorage.getItem("token");
-    await fetch(`/api/master/user/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+    const ok = await confirm({
+      title: "Hapus User",
+      message: "Apakah Anda yakin ingin menghapus user ini? Tindakan ini tidak dapat dibatalkan.",
+      confirmText: "Ya, Hapus",
+      variant: "danger",
     });
-    fetchAll();
+    if (!ok) return;
+
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`/api/master/user/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      if (data.success) {
+        toast.success("User berhasil dihapus");
+        fetchAll();
+      } else {
+        toast.error(data.error || "Gagal menghapus user");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan");
+    }
   }
 
   const regionBranches = branches.filter((b) => b.regionId === form.regionId);

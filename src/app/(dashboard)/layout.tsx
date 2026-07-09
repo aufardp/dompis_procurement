@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { getMenuByRole } from "@/lib/permissions";
 import { JwtPayload } from "@/lib/jwt";
+import { ToastProvider } from "@/components/shared/Toast";
+import { ConfirmProvider } from "@/components/shared/ConfirmModal";
 
 const iconMap: Record<string, any> = {
   Dashboard: LayoutDashboard,
@@ -66,6 +68,8 @@ export default function DashboardLayout({
   }
 
   return (
+    <ToastProvider>
+      <ConfirmProvider>
     <div className="min-h-screen bg-gray-50 flex">
       {sidebarOpen && (
         <aside className="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-full z-30">
@@ -157,5 +161,7 @@ export default function DashboardLayout({
         <main className="p-6">{children}</main>
       </div>
     </div>
+      </ConfirmProvider>
+    </ToastProvider>
   );
 }

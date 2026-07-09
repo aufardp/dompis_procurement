@@ -18,7 +18,7 @@ const stageOptions = [
 ];
 
 const fields: FieldConfig[] = [
-  { key: "id", label: "ID", type: "text" },
+  { key: "id", label: "ID", type: "text", hidden: true, disabled: true },
   { key: "name", label: "Nama Posisi", type: "text", required: true, width: "180px" },
   { key: "code", label: "Kode", type: "text", width: "100px" },
   { key: "stage", label: "Stage", type: "select", required: true, options: stageOptions, width: "160px" },

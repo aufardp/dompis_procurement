@@ -2,12 +2,16 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
+import { useToast } from "./Toast";
+import { useConfirm } from "./ConfirmModal";
 
 export type FieldConfig = {
   key: string;
   label: string;
   type: "text" | "number" | "select" | "textarea" | "boolean";
   required?: boolean;
+  disabled?: boolean;
+  hidden?: boolean;
   options?: { value: string; label: string }[];
   width?: string;
 };
@@ -20,6 +24,8 @@ type Props = {
 };
 
 export default function MasterCRUDPage({ title, entity, fields }: Props) {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [items, setItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -42,7 +48,7 @@ export default function MasterCRUDPage({ title, entity, fields }: Props) {
 
   function openCreate() {
     const initial: Record<string, any> = {};
-    fields.forEach((f) => {
+    fields.filter(f => !f.hidden).forEach((f) => {
       if (f.type === "boolean") initial[f.key] = true;
       else if (f.type === "select" && f.options?.length) initial[f.key] = f.options[0].value;
       else initial[f.key] = "";
@@ -55,7 +61,7 @@ export default function MasterCRUDPage({ title, entity, fields }: Props) {
   function openEdit(item: any) {
     setEditItem(item);
     const initial: Record<string, any> = {};
-    fields.forEach((f) => {
+    fields.filter(f => !f.hidden).forEach((f) => {
       initial[f.key] = item[f.key] ?? "";
     });
     setForm(initial);
@@ -67,32 +73,49 @@ export default function MasterCRUDPage({ title, entity, fields }: Props) {
     const token = localStorage.getItem("token");
     const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
-    if (editItem) {
-      await fetch(`/api/master/${entity}/${editItem.id}`, {
-        method: "PUT",
-        headers,
-        body: JSON.stringify(form),
-      });
-    } else {
-      await fetch(`/api/master/${entity}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify(form),
-      });
-    }
+    try {
+      const res = editItem
+        ? await fetch(`/api/master/${entity}/${editItem.id}`, { method: "PUT", headers, body: JSON.stringify(form) })
+        : await fetch(`/api/master/${entity}`, { method: "POST", headers, body: JSON.stringify(form) });
 
-    setModalOpen(false);
-    fetchData();
+      const data = await res.json();
+      if (data.success) {
+        toast.success(editItem ? `${title} berhasil diperbarui` : `${title} berhasil dibuat`);
+        setModalOpen(false);
+        fetchData();
+      } else {
+        toast.error(data.error || "Gagal menyimpan data");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan");
+    }
   }
 
   async function handleDelete(id: string) {
-    if (!confirm(`Hapus ${title} ini?`)) return;
-    const token = localStorage.getItem("token");
-    await fetch(`/api/master/${entity}/${id}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
+    const ok = await confirm({
+      title: `Hapus ${title}`,
+      message: `Apakah Anda yakin ingin menghapus ${title.toLowerCase()} ini? Tindakan ini tidak dapat dibatalkan.`,
+      confirmText: "Ya, Hapus",
+      variant: "danger",
     });
-    fetchData();
+    if (!ok) return;
+
+    const token = localStorage.getItem("token");
+    try {
+      const res = await fetch(`/api/master/${entity}/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success(`${title} berhasil dihapus`);
+        fetchData();
+      } else {
+        toast.error(data.error || "Gagal menghapus data");
+      }
+    } catch {
+      toast.error("Terjadi kesalahan");
+    }
   }
 
   function renderCell(item: any, field: FieldConfig) {
@@ -104,8 +127,9 @@ export default function MasterCRUDPage({ title, entity, fields }: Props) {
         </span>
       );
     }
-    if (field.key === "regionId" || field.key.endsWith("Id")) {
-      return String(val ?? "-");
+    if (field.type === "select" && field.options?.length) {
+      const opt = field.options.find((o) => o.value === val);
+      return String(opt?.label ?? val ?? "-");
     }
     return String(val ?? "-");
   }
@@ -180,12 +204,15 @@ export default function MasterCRUDPage({ title, entity, fields }: Props) {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
-              {fields.map((field) => (
+              {fields.filter(f => !f.hidden).map((field) => {
+                const isDisabled = field.disabled && !!editItem;
+                return (
                 <div key={field.key}>
                   <label className="block text-sm font-medium text-gray-700">{field.label}{field.required ? " *" : ""}</label>
                   {field.type === "select" ? (
                     <select
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                      disabled={isDisabled}
+                      className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 ${isDisabled ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
                       value={form[field.key] ?? ""}
                       onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
                       required={field.required}
@@ -196,14 +223,16 @@ export default function MasterCRUDPage({ title, entity, fields }: Props) {
                     </select>
                   ) : field.type === "textarea" ? (
                     <textarea
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                      disabled={isDisabled}
+                      className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 ${isDisabled ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
                       value={form[field.key] ?? ""}
                       onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
                       required={field.required}
                     />
                   ) : field.type === "boolean" ? (
                     <select
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                      disabled={isDisabled}
+                      className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 ${isDisabled ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
                       value={form[field.key] ? "true" : "false"}
                       onChange={(e) => setForm({ ...form, [field.key]: e.target.value === "true" })}
                     >
@@ -212,15 +241,20 @@ export default function MasterCRUDPage({ title, entity, fields }: Props) {
                     </select>
                   ) : (
                     <input
+                      disabled={isDisabled}
                       type={field.type === "number" ? "number" : "text"}
-                      className="w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300"
+                      className={`w-full mt-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-300 ${isDisabled ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
                       value={form[field.key] ?? ""}
                       onChange={(e) => setForm({ ...form, [field.key]: field.type === "number" ? Number(e.target.value) : e.target.value })}
                       required={field.required}
                     />
                   )}
+                  {isDisabled && (
+                    <p className="text-xs text-gray-400 mt-1">Tidak dapat diubah setelah dibuat</p>
+                  )}
                 </div>
-              ))}
+                );
+              })}
 
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2 border border-gray-300 rounded-lg text-sm">Batal</button>
