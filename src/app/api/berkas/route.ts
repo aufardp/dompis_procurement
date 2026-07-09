@@ -23,6 +23,9 @@ export async function GET(request: NextRequest) {
     }
     if (stage) where.currentStage = stage;
     if (status) where.approvalStatus = status;
+    if (user.roleName === "mitra" && user.mitraId) {
+      where.info = { ...(where.info || {}), mitraId: user.mitraId };
+    }
 
     const [items, total] = await Promise.all([
       prisma.berkas.findMany({

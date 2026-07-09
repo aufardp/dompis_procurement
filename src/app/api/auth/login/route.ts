@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       roleName: user.role.name,
       branchId: user.branchId,
       regionId: user.regionId,
+      mitraId: user.mitraId,
     });
 
     return NextResponse.json({

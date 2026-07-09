@@ -114,12 +114,14 @@ model User {
   roleId     String
   branchId   String?
   regionId  String?
+  mitraId    String?
   status     UserStatus @default(ACTIVE)
   isActive   Boolean    @default(true)
 
   role               Role              @relation(fields: [roleId], references: [id], map: "fk_user_role")
   branch             Branch?           @relation(fields: [branchId], references: [id], map: "fk_user_branch")
   region  Region?  @relation(fields: [regionId], references: [id], map: "fk_user_region")
+  mitra              Mitra?            @relation(fields: [mitraId], references: [id], map: "fk_user_mitra")
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   createdBerkas      Berkas[]          @relation("CreatedBy")
@@ -133,6 +135,7 @@ model User {
   @@index([roleId])
   @@index([branchId])
   @@index([regionId])
+  @@index([mitraId])
   @@map("users")
 }
 
@@ -170,6 +173,7 @@ model Mitra {
   pic         String?
   isActive    Boolean      @default(true)
   berkasInfos BerkasInfo[]
+  users       User[]
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 

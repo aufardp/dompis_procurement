@@ -8,8 +8,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
   const { id } = await params;
 
-  const berkas = await prisma.berkas.findUnique({
-    where: { id },
+  const berkas = await prisma.berkas.findFirst({
+    where: {
+      id,
+      ...(user.roleName === "mitra" && user.mitraId
+        ? { info: { mitraId: user.mitraId } }
+        : {}),
+    },
     include: {
       info: {
         include: { program: true, mitra: true, jenisPekerjaan: true, jenisTagihan: true, branch: true, region: true },

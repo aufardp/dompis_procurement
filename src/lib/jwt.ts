@@ -10,6 +10,7 @@ export type JwtPayload = {
   roleName: string;
   branchId: string | null;
   regionId: string | null;
+  mitraId: string | null;
 };
 
 export function signToken(payload: JwtPayload): string {

@@ -52,7 +52,12 @@ const rolePermissions: Record<string, Permission[]> = {
   ],
   mitra: [
     "dashboard:view",
+    "berkas:view",
+    "berkas:create",
+    "berkas:edit",
+    "berkas:submit",
     "tracking:view",
+    "laporan:view",
   ],
 };
 
@@ -91,6 +96,7 @@ export function getMenuByRole(user: JwtPayload) {
             { label: "Program", href: "/master/program" },
             { label: "Mitra", href: "/master/mitra" },
             { label: "Posisi", href: "/master/posisi" },
+            { label: "Jenis Pekerjaan", href: "/master/jenis-pekerjaan" },
           ],
         }]
       : []),

@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
 import { AlertTriangle, X } from "lucide-react";
 
 type ConfirmVariant = "danger" | "warning" | "primary";
@@ -64,8 +70,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {children}
       {open && (
         <div
-          className="fixed inset-0 bg-black/40 flex items-center justify-center z-[9998]"
-          onClick={(e) => { if (e.target === e.currentTarget) handleCancel(); }}
+          className="fixed inset-0 bg-black/40 flex items-center justify-center z-9998"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleCancel();
+          }}
         >
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <div className="flex items-start justify-between mb-4">
@@ -73,9 +81,14 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <div className="p-2 rounded-full bg-red-50">
                   <AlertTriangle className="w-6 h-6 text-red-500" />
                 </div>
-                <h2 className="text-lg font-bold">{opts.title || "Konfirmasi"}</h2>
+                <h2 className="text-lg font-bold">
+                  {opts.title || "Konfirmasi"}
+                </h2>
               </div>
-              <button onClick={handleCancel} className="p-0.5 hover:bg-gray-100 rounded">
+              <button
+                onClick={handleCancel}
+                className="p-0.5 hover:bg-gray-100 rounded"
+              >
                 <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>
